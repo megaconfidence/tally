@@ -64,6 +64,8 @@ export async function transition(kind, update, enteringEl) {
 	}
 	document.documentElement.dataset.nav = kind;
 	const vt = document.startViewTransition(() => update({ viewTransition: true }));
+	// An interrupted transition rejects `ready`; the update still applies, so that is not an error.
+	vt.ready.catch(() => undefined);
 	try {
 		await vt.finished;
 	} catch {
