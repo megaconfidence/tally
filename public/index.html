@@ -1,20 +1,218 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Hello, World!</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+		<meta name="theme-color" content="#f6f5f2" />
+		<title>Tally · Expenses</title>
+		<link
+			rel="icon"
+			href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23fa500f'/%3E%3Cpath d='M10 8h12v17l-2-1-2 1-2-1-2 1-2-1-2 1Z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M13 13h6M13 17h4' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"
+		/>
+		<link rel="stylesheet" href="/styles.css" />
+		<script type="module" src="/js/app.js"></script>
 	</head>
 	<body>
-		<h1 id="heading"></h1>
-		<p>This page comes from a static asset stored at `public/index.html` as configured in `wrangler.jsonc`.</p>
-		<script>
-			fetch('/message')
-				.then((resp) => resp.text())
-				.then((text) => {
-					const h1 = document.getElementById('heading');
-					h1.textContent = text;
-				});
-		</script>
+		<!-- Home -->
+		<section class="screen" id="screen-home">
+			<header class="topbar">
+				<div class="brand">
+					<span class="brand-mark"><i data-icon="receipt"></i></span>
+					<span class="brand-name">Tally</span>
+				</div>
+				<button id="open-settings" class="icon-btn" aria-label="Settings" title="Settings"><i data-icon="settings"></i></button>
+			</header>
+			<main class="page home">
+				<div class="hero">
+					<div class="hero-label">Total spent</div>
+					<div class="l-total">£0.00</div>
+					<div class="l-count">No receipts yet</div>
+				</div>
+
+				<div class="actions">
+					<a class="action primary" href="#/scan">
+						<span class="action-icon"><i data-icon="camera"></i></span>
+						<span class="action-text"><strong>Scan a receipt</strong><small>Use your camera</small></span>
+					</a>
+					<button class="action" id="upload">
+						<span class="action-icon"><i data-icon="upload"></i></span>
+						<span class="action-text"><strong>Upload a photo</strong><small>From your files</small></span>
+					</button>
+					<input id="file" type="file" accept="image/*" hidden />
+				</div>
+
+				<section class="samples" id="samples">
+					<div class="samples-head">
+						<h2>No receipt handy?</h2>
+						<p>Try one of ours. Tap the front card to scan it, or swipe through the deck.</p>
+					</div>
+					<div class="deck" role="group" aria-label="Sample receipts"></div>
+					<div class="deck-foot">
+						<span class="deck-caption"></span>
+						<div class="deck-dots"></div>
+					</div>
+				</section>
+
+				<a class="row-link" href="#/ask">
+					<span class="row-link-icon"><i data-icon="message"></i></span>
+					<span class="row-link-text"><strong>Ask about your expenses</strong><small>Totals, trips, policy questions</small></span>
+					<i data-icon="chevronRight"></i>
+				</a>
+
+				<section class="list-section">
+					<h2>Expenses</h2>
+					<div class="l-list" role="list"></div>
+				</section>
+
+			</main>
+		</section>
+
+		<!-- Camera -->
+		<section class="screen camera-screen" id="screen-capture" hidden>
+			<video playsinline muted autoplay></video>
+			<div class="guide">
+				<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+			</div>
+			<div class="cam-off">
+				<span class="cam-off-icon"><i data-icon="camera"></i></span>
+				<p class="cam-off-title">Camera unavailable</p>
+				<p class="cam-off-sub">Allow camera access in your browser, or choose a photo instead.</p>
+				<button id="enable-camera" class="btn light">Try again</button>
+			</div>
+			<div class="cam-top">
+				<a class="cam-btn" href="#/" data-replace aria-label="Close camera"><i data-icon="x"></i></a>
+				<label class="cam-auto"><input type="checkbox" id="auto" checked /><span class="toggle-track"></span>Auto</label>
+			</div>
+			<div class="guide-hint">Fit the receipt inside the frame</div>
+			<div class="cam-bottom">
+				<button class="cam-btn" id="cam-upload" aria-label="Choose a photo" title="Choose a photo"><i data-icon="image"></i></button>
+				<button id="shutter" class="shutter" title="Take photo" aria-label="Take photo"><span></span></button>
+				<span class="cam-btn ghost" aria-hidden="true"></span>
+			</div>
+		</section>
+
+		<!-- Extraction -->
+		<section class="screen" id="screen-process" hidden>
+			<header class="topbar">
+				<span class="topbar-title process-title">Reading receipt</span>
+			</header>
+			<div class="process">
+				<div class="process-media"><div class="result"></div></div>
+				<aside class="process-panel">
+					<ol class="timeline">
+						<li data-step="ocr" data-status="pending"><span class="t-dot"></span><span class="t-name">Reading text</span><span class="t-detail"></span></li>
+						<li data-step="extraction" data-status="pending"><span class="t-dot"></span><span class="t-name">Extracting details</span><span class="t-detail"></span></li>
+						<li data-step="checks" data-status="pending"><span class="t-dot"></span><span class="t-name">Checking</span><span class="t-detail"></span></li>
+						<li data-step="saved" data-status="pending"><span class="t-dot"></span><span class="t-name">Saving</span><span class="t-detail"></span></li>
+					</ol>
+					<div class="extract-body"></div>
+				</aside>
+			</div>
+		</section>
+
+		<!-- Summary / expense detail -->
+		<section class="screen" id="screen-expense" hidden>
+			<header class="topbar">
+				<a class="icon-btn" href="#/" data-replace aria-label="Back to expenses"><i data-icon="arrowLeft"></i></a>
+				<span class="topbar-title detail-title">Expense</span>
+				<button class="icon-btn danger detail-delete" title="Delete expense" aria-label="Delete expense"><i data-icon="trash"></i></button>
+			</header>
+			<main class="page detail">
+				<div class="saved-banner" hidden>
+					<span class="saved-icon"><i data-icon="check"></i></span>
+					<span class="saved-text"><strong>Saved to your expenses</strong><small class="saved-time"></small></span>
+				</div>
+				<div class="detail-grid">
+					<div class="detail-body"></div>
+					<section class="detail-receipt">
+						<div class="detail-receipt-head">
+							<h3>Receipt</h3>
+							<div class="seg" id="detail-viewmode">
+								<button data-mode="photo" class="active"><i data-icon="image"></i>Photo</button><button data-mode="clean"><i data-icon="text"></i>Text</button>
+							</div>
+						</div>
+						<div class="detail-media result"></div>
+						<p class="detail-hint">Tap any value to see where it was read.</p>
+					</section>
+				</div>
+				<div class="detail-actions" hidden>
+					<a class="btn" href="#/scan" data-replace><i data-icon="camera"></i>Scan another</a>
+					<a class="btn primary" href="#/" data-replace>Done</a>
+				</div>
+			</main>
+		</section>
+
+		<!-- Ask -->
+		<section class="screen" id="screen-ask" hidden>
+			<header class="topbar">
+				<a class="icon-btn" href="#/" data-replace aria-label="Back to expenses"><i data-icon="arrowLeft"></i></a>
+				<span class="topbar-title">Ask</span>
+				<span class="icon-btn ghost" aria-hidden="true"></span>
+			</header>
+			<div class="ask-inner">
+				<div class="a-thread">
+					<div class="a-intro">
+						<h3>Ask about your expenses</h3>
+						<p>Answers are based on your scanned receipts and link back to them.</p>
+						<div class="a-suggest"></div>
+					</div>
+				</div>
+				<form class="a-form" autocomplete="off">
+					<input name="q" placeholder="How much did I spend on food in Germany?" maxlength="500" />
+					<button class="send" type="submit" aria-label="Send"><i data-icon="arrowUp"></i></button>
+				</form>
+			</div>
+		</section>
+
+		<dialog id="compare" class="compare">
+			<header>
+				<div>
+					<h2>Possible duplicate</h2>
+					<p>Same merchant, date and total. Matching fields are highlighted.</p>
+				</div>
+				<button class="icon-btn c-close" aria-label="Close"><i data-icon="x"></i></button>
+			</header>
+			<div class="c-body"></div>
+		</dialog>
+
+		<dialog id="settings" class="settings">
+			<form method="dialog">
+				<header>
+					<h2>Settings</h2>
+				</header>
+				<label class="field"
+					><span>Home currency</span>
+					<select name="home_currency">
+						<option>GBP</option>
+						<option>EUR</option>
+						<option>USD</option>
+						<option>CHF</option>
+						<option>JPY</option>
+						<option>CAD</option>
+						<option>AUD</option>
+						<option>SEK</option>
+						<option>NOK</option>
+						<option>DKK</option>
+						<option>PLN</option>
+						<option>INR</option>
+						<option>SGD</option>
+					</select>
+					<small>Foreign receipts are converted at the ECB rate for the receipt date.</small>
+				</label>
+				<label class="field"
+					><span>Expense policy</span>
+					<textarea name="policy" rows="6"></textarea>
+					<small>Each new receipt is reviewed against these rules.</small>
+				</label>
+				<footer>
+					<button type="button" class="btn danger reset">Delete all</button>
+					<span class="spacer"></span>
+					<button type="button" class="btn cancel">Cancel</button>
+					<button type="submit" class="btn primary">Save</button>
+				</footer>
+			</form>
+		</dialog>
+
+		<div id="toasts" aria-live="polite"></div>
 	</body>
 </html>
