@@ -1922,6 +1922,28 @@ a.btn.primary {
 	border: 1px solid var(--line);
 	border-radius: 12px;
 	background: var(--surface);
+.answer p + p,
+.answer ul + p,
+.answer ol + p,
+.answer p + ul,
+.answer p + ol {
+	margin-top: 8px;
+}
+
+.answer ul,
+.answer ol {
+	margin: 0;
+	padding-left: 20px;
+}
+
+.answer li + li {
+	margin-top: 2px;
+}
+
+.answer .a-heading {
+	font-weight: 600;
+}
+
 	display: flex;
 	flex-direction: column;
 	gap: 8px;

@@ -50,19 +50,52 @@ export class Ask {
 		return h('button', { type: 'button', class: 'cite', title: e ? `Open ${e.merchant} (#${id})` : `Open expense #${id}`, onclick: () => this.onCite(id) }, `#${id}`);
 	}
 
-	renderAnswer(text) {
-		const p = h('p', {});
+	/** Bold text and receipt citations ([#3] or [#3, #4]) inside a line. */
+	renderInline(text, el) {
 		let last = 0;
-		for (const m of text.matchAll(/\[(#?\d+(?:\s*,\s*#?\d+)*)\]/g)) {
-			p.append(text.slice(last, m.index));
-			m[1].split(',').forEach((part, i) => {
-				if (i) p.append(' ');
-				p.append(this.cite(Number(part.replace(/\D/g, ''))));
-			});
+		for (const m of text.matchAll(/\*\*(.+?)\*\*|\[(#?\d+(?:\s*,\s*#?\d+)*)\]/g)) {
+			el.append(text.slice(last, m.index));
+			if (m[1] !== undefined) {
+				const strong = h('strong', {});
+				this.renderInline(m[1], strong);
+				el.append(strong);
+			} else {
+				m[2].split(',').forEach((part, i) => {
+					if (i) el.append(' ');
+					el.append(this.cite(Number(part.replace(/\D/g, ''))));
+				});
+			}
 			last = m.index + m[0].length;
 		}
-		p.append(text.slice(last));
-		return p;
+		el.append(text.slice(last));
+		return el;
+	}
+
+	/** The small Markdown subset the model uses: paragraphs, bullet and numbered lists, bold, headings. Built as DOM, never as HTML. */
+	renderAnswer(text) {
+		const root = h('div', { class: 'answer' });
+		let list = null;
+		for (const raw of text.split('\n')) {
+			const line = raw.trim();
+			if (!line) {
+				list = null;
+				continue;
+			}
+			const item = line.match(/^(?:([-*•])|(\d+)[.)])\s+(.*)$/);
+			if (item) {
+				const tag = item[1] ? 'ul' : 'ol';
+				if (list?.tagName.toLowerCase() !== tag) {
+					list = h(tag, {});
+					root.append(list);
+				}
+				list.append(this.renderInline(item[3], h('li', {})));
+				continue;
+			}
+			list = null;
+			const heading = line.match(/^#{1,6}\s+(.*)$/);
+			root.append(heading ? this.renderInline(heading[1], h('p', { class: 'a-heading' })) : this.renderInline(line, h('p', {})));
+		}
+		return root;
 	}
 
 	renderChart(chart) {
