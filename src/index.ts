@@ -1,7 +1,7 @@
 import { ask } from './ask';
 import { checkPolicy, convert, geocode } from './enrich';
 import { Ledger } from './ledger';
-import { ocr, toDataUrl, type ChatMessage } from './mistral';
+import { ocr, toDataUrl, type ChatMessage, type ChatModel } from './mistral';
 import { annotationPrompt, buildBlocks, checkMath, findSources, markSensitive, normalizeExtraction, RECEIPT_SCHEMA, verifyCard } from './receipt';
 import type { Checks, OcrPage, ScanEvent, Settings } from './types';
 
@@ -16,6 +16,7 @@ const json = (data: unknown, status = 200) => Response.json(data, { status, head
 const fail = (status: number, error: string) => json({ error }, status);
 const today = () => new Date().toISOString().slice(0, 10);
 const imageKey = (id: number) => `receipts/${LEDGER_NAME}/${id}.jpg`;
+const chatModel = (env: Env, id: string): ChatModel => ({ id, reasoningEffort: env.REASONING_EFFORT || undefined });
 
 async function readImage(request: Request): Promise<{ bytes: ArrayBuffer; mime: string } | Response> {
 	const mime = (request.headers.get('content-type') ?? '').split(';')[0].trim();
@@ -84,7 +85,7 @@ function scan(bytes: ArrayBuffer, mime: string, env: Env, ctx: ExecutionContext)
 			timed('fx', convert(extraction.total, extraction.currency, settings.home_currency, extraction.date, date)),
 			ledger.findDuplicate(extraction),
 		]);
-		const policy = await timed('policy', checkPolicy(env.MISTRAL_API_KEY, env.POLICY_MODEL, settings.policy, extraction, sources, fx, date)).catch(
+		const policy = await timed('policy', checkPolicy(env.MISTRAL_API_KEY, chatModel(env, env.POLICY_MODEL), settings.policy, extraction, sources, fx, date)).catch(
 			(err) => {
 				console.error(JSON.stringify({ msg: 'policy check failed', error: String(err) }));
 				return [];
@@ -146,7 +147,7 @@ async function askRoute(request: Request, env: Env): Promise<Response> {
 	if (!rows.length) return json({ answer: 'There are no expenses yet. Scan a receipt first.', expense_ids: [], chart: null, map: null });
 	const result = await ask(
 		env.MISTRAL_API_KEY,
-		env.ASK_MODEL,
+		chatModel(env, env.ASK_MODEL),
 		question.slice(0, 1000),
 		history,
 		rows,

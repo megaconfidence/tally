@@ -33,8 +33,10 @@
 	],
 	"vars": {
 		"OCR_MODEL": "mistral-ocr-4-1",
-		"POLICY_MODEL": "mistral-medium-latest",
-		"ASK_MODEL": "mistral-medium-latest"
+		"POLICY_MODEL": "mistral-large-4",
+		"ASK_MODEL": "mistral-large-4",
+		// "none" keeps answers fast; "high" lets the model reason first (adds ~10 s). Empty for models without the option.
+		"REASONING_EFFORT": "none"
 	},
 	"secrets": {
 		"required": ["MISTRAL_API_KEY"]

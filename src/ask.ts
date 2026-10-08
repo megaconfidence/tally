@@ -1,4 +1,4 @@
-import { chatJson, type ChatMessage } from './mistral';
+import { chatJson, type ChatMessage, type ChatModel } from './mistral';
 import type { AskRow } from './types';
 
 const GROUPS = ['none', 'category', 'merchant', 'date', 'city', 'country', 'currency'] as const;
@@ -16,7 +16,7 @@ const ASK_SCHEMA = {
 		chart: {
 			type: 'object',
 			additionalProperties: false,
-			description: 'A breakdown chart when it helps the answer, otherwise group_by "none"',
+			description: 'A breakdown chart whenever the answer compares amounts across groups (category, merchant, city, country, currency or date), otherwise group_by "none"',
 			properties: {
 				title: { type: 'string' },
 				group_by: { type: 'string', enum: GROUPS },
@@ -24,7 +24,7 @@ const ASK_SCHEMA = {
 			},
 			required: ['title', 'group_by', 'expense_ids'],
 		},
-		show_map: { type: 'boolean', description: 'True when the question is about places, trips or where money was spent' },
+		show_map: { type: 'boolean', description: 'True when the question mentions places, cities, countries, travel, trips, a map, or where money was spent' },
 	},
 	required: ['answer', 'expense_ids', 'chart', 'show_map'],
 };
@@ -69,7 +69,7 @@ function totals(rows: AskRow[], group: Group, home: string) {
 
 export async function ask(
 	apiKey: string,
-	model: string,
+	model: ChatModel,
 	question: string,
 	history: ChatMessage[],
 	rows: AskRow[],

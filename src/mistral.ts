@@ -54,7 +54,14 @@ export function ocr(apiKey: string, opts: OcrOptions): Promise<OcrResponse> {
 }
 
 interface ChatResponse {
-	choices: { message: { content: string } }[];
+	// Reasoning models return a list of parts (thinking, then text) instead of a plain string.
+	choices: { message: { content: string | { type: string; text?: string }[] } }[];
+}
+
+/** A chat model and, for models that support it, how much it reasons before answering ("none" or "high"). */
+export interface ChatModel {
+	id: string;
+	reasoningEffort?: string;
 }
 
 export interface ChatMessage {
@@ -65,7 +72,7 @@ export interface ChatMessage {
 /** Chat completion constrained to a JSON schema; returns the parsed object. */
 export async function chatJson<T>(
 	apiKey: string,
-	model: string,
+	model: ChatModel,
 	messages: ChatMessage[],
 	name: string,
 	schema: object,
@@ -75,14 +82,17 @@ export async function chatJson<T>(
 		apiKey,
 		'/chat/completions',
 		{
-			model,
+			model: model.id,
+			...(model.reasoningEffort ? { reasoning_effort: model.reasoningEffort } : {}),
 			messages,
 			temperature: 0.1,
 			response_format: { type: 'json_schema', json_schema: { name, schema, strict: true } },
 		},
 		timeoutMs,
 	);
-	return JSON.parse(res.choices[0].message.content) as T;
+	const content = res.choices[0].message.content;
+	const text = typeof content === 'string' ? content : content.map((part) => (part.type === 'text' ? (part.text ?? '') : '')).join('');
+	return JSON.parse(text) as T;
 }
 
 export function toDataUrl(bytes: ArrayBuffer, mime: string): string {

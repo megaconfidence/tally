@@ -1,4 +1,4 @@
-import { chatJson } from './mistral';
+import { chatJson, type ChatModel } from './mistral';
 import type { Extraction, Fx, Geo, PolicyViolation, Sources } from './types';
 
 const cached = () => ({ cf: { cacheEverything: true, cacheTtl: 86_400 }, signal: AbortSignal.timeout(4000) }) satisfies RequestInit;
@@ -64,7 +64,7 @@ const POLICY_SCHEMA = {
 
 export async function checkPolicy(
 	apiKey: string,
-	model: string,
+	model: ChatModel,
 	policy: string,
 	ex: Extraction,
 	sources: Sources,
