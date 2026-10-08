@@ -8,16 +8,23 @@ const SUGGESTIONS = [
 	'What was my biggest expense and why?',
 ];
 
-let leaflet;
-function loadLeaflet() {
-	leaflet ??= new Promise((resolve, reject) => {
-		document.head.append(h('link', { rel: 'stylesheet', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' }));
-		const script = h('script', { src: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js' });
-		script.onload = () => resolve(window.L);
-		script.onerror = () => reject(new Error('Could not load map library'));
+const MAPLIBRE = 'https://unpkg.com/maplibre-gl@5.24.0/dist';
+/** Light basemap from OpenFreeMap: free, no API key, no sign-up. */
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
+
+let maplibre;
+function loadMapLibre() {
+	maplibre ??= new Promise((resolve, reject) => {
+		document.head.append(h('link', { rel: 'stylesheet', href: `${MAPLIBRE}/maplibre-gl.css` }));
+		const script = h('script', { src: `${MAPLIBRE}/maplibre-gl.js` });
+		script.onload = () => resolve(window.maplibregl);
+		script.onerror = () => {
+			maplibre = null;
+			reject(new Error("Couldn't load the map"));
+		};
 		document.head.append(script);
 	});
-	return leaflet;
+	return maplibre;
 }
 
 /** Chat over the ledger. Answers cite receipts as [#id], which become buttons opening the source. */
@@ -78,21 +85,58 @@ export class Ask {
 
 	async renderMap(points, host) {
 		try {
-			const L = await loadLeaflet();
-			const map = L.map(host, { zoomControl: false, attributionControl: true, scrollWheelZoom: false });
-			L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-				attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-				maxZoom: 18,
-			}).addTo(map);
+			const ml = await loadMapLibre();
 			const max = Math.max(...points.map((p) => p.amount), 1);
-			for (const p of points) {
-				L.circleMarker([p.lat, p.lon], { radius: 6 + 12 * Math.sqrt(p.amount / max), color: '#c2410c', fillColor: '#f0530f', fillOpacity: 0.35, weight: 1.5 })
-					.addTo(map)
-					.bindTooltip(`${p.label} · ${money(p.amount, this.home)}`, { direction: 'top' })
-					.on('click', () => this.onCite(p.id));
-			}
-			if (points.length === 1) map.setView([points[0].lat, points[0].lon], 10);
-			else map.fitBounds(points.map((p) => [p.lat, p.lon]), { padding: [30, 30], maxZoom: 10 });
+			const bounds = new ml.LngLatBounds();
+			for (const p of points) bounds.extend([p.lon, p.lat]);
+			const map = new ml.Map({
+				container: host,
+				style: MAP_STYLE,
+				bounds,
+				fitBoundsOptions: { padding: 40, maxZoom: 10 },
+				attributionControl: { compact: true },
+				scrollZoom: false,
+				dragRotate: false,
+				pitchWithRotate: false,
+			});
+			map.touchZoomRotate.disableRotation();
+			const popup = new ml.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
+			map.on('load', () => {
+				map.addSource('receipts', {
+					type: 'geojson',
+					data: {
+						type: 'FeatureCollection',
+						features: points.map((p) => ({
+							type: 'Feature',
+							geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
+							properties: { id: p.id, label: `${p.label} · ${money(p.amount, this.home)}`, r: 6 + 12 * Math.sqrt(p.amount / max) },
+						})),
+					},
+				});
+				map.addLayer({
+					id: 'receipts',
+					type: 'circle',
+					source: 'receipts',
+					paint: {
+						'circle-radius': ['get', 'r'],
+						'circle-color': '#f0530f',
+						'circle-opacity': 0.35,
+						'circle-stroke-color': '#c2410c',
+						'circle-stroke-width': 1.5,
+					},
+				});
+			});
+			// mousemove, not mouseenter: moving straight from one marker to another must update the label.
+			map.on('mousemove', 'receipts', (e) => {
+				map.getCanvas().style.cursor = 'pointer';
+				const f = e.features[0];
+				popup.setLngLat(f.geometry.coordinates).setText(f.properties.label).addTo(map);
+			});
+			map.on('mouseleave', 'receipts', () => {
+				map.getCanvas().style.cursor = '';
+				popup.remove();
+			});
+			map.on('click', 'receipts', (e) => this.onCite(e.features[0].properties.id));
 		} catch (err) {
 			host.textContent = err.message;
 		}

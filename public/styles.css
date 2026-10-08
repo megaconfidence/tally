@@ -1992,6 +1992,14 @@ a.btn.primary {
 	background: var(--canvas);
 }
 
+.map .maplibregl-popup-content {
+	padding: 6px 10px;
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+	font: 500 12px/1.3 -apple-system, BlinkMacSystemFont, sans-serif;
+	color: var(--text);
+}
+
 .a-form {
 	flex: none;
 	display: flex;
