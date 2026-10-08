@@ -54,7 +54,7 @@ flowchart LR
 4. It then reviews the expense:
    - checks the arithmetic,
    - looks for a matching receipt already in the ledger,
-   - applies the expense policy using Mistral Medium,
+   - applies the expense policy using Mistral Large 4,
    - converts the currency at the ECB rate ([Frankfurter](https://frankfurter.dev)),
    - places the city on a map ([OpenStreetMap](https://nominatim.org)).
 5. The expense is saved in a Durable Object's SQLite database. The browser covers any card number and uploads that copy of the photo to R2.
@@ -105,5 +105,6 @@ npx wrangler dev --tunnel
 | What | Where | Default |
 | --- | --- | --- |
 | OCR model | `OCR_MODEL` in `wrangler.jsonc` | `mistral-ocr-4-1` |
-| Model for the policy check and for questions | `POLICY_MODEL`, `ASK_MODEL` in `wrangler.jsonc` | `mistral-medium-latest` |
+| Model for the policy check and for questions | `POLICY_MODEL`, `ASK_MODEL` in `wrangler.jsonc` | `mistral-large-4` |
+| How much that model reasons first (`"high"` is slower) | `REASONING_EFFORT` in `wrangler.jsonc` | `none` |
 | Home currency and expense policy | Settings in the app | GBP, a four-rule sample policy |
