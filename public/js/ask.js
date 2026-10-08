@@ -1,11 +1,15 @@
 import { api } from './api.js';
+import { icon } from './icons.js';
 import { h, money } from './util.js';
 
+/** Each suggestion shows off one thing Ask can do. */
 const SUGGESTIONS = [
-	'How much did I spend in total?',
-	'Which receipts break the expense policy?',
-	'Where did my money go on this trip?',
-	'What was my biggest expense and why?',
+	{ icon: 'mapPin', label: 'Map', text: 'Show where I spent money on a map' },
+	{ icon: 'chart', label: 'Chart', text: 'Break down my spending by category' },
+	{ icon: 'alertCircle', label: 'Policy', text: 'Which receipts break the expense policy, and why?' },
+	{ icon: 'coins', label: 'Currency', text: 'How much did I spend abroad, in my home currency?' },
+	{ icon: 'list', label: 'Line items', text: 'What did I actually buy? List every item' },
+	{ icon: 'copy', label: 'Duplicates', text: 'Did I scan any receipt twice?' },
 ];
 
 const MAPLIBRE = 'https://unpkg.com/maplibre-gl@5.24.0/dist';
@@ -42,7 +46,20 @@ export class Ask {
 			e.preventDefault();
 			this.submit(this.input.value);
 		});
-		root.querySelector('.a-suggest').append(...SUGGESTIONS.map((s) => h('button', { type: 'button', class: 'suggestion', onclick: () => this.submit(s) }, s)));
+		root.querySelector('.a-suggest').append(
+			...SUGGESTIONS.map((s) =>
+				h(
+					'button',
+					{ type: 'button', class: 'suggestion', onclick: () => this.submit(s.text) },
+					h('span', { class: 's-icon' }, icon(s.icon, 16)),
+					h('span', { class: 's-text' }, h('strong', {}, s.label), h('span', {}, s.text)),
+				),
+			),
+		);
+		// Once a conversation starts, the same suggestions stay available as a compact row above the input.
+		root.querySelector('.a-chips').append(
+			...SUGGESTIONS.map((s) => h('button', { type: 'button', title: s.text, onclick: () => this.submit(s.text) }, icon(s.icon, 14), s.label)),
+		);
 	}
 
 	cite(id) {
